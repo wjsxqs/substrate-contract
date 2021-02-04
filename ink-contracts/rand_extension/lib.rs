@@ -23,6 +23,10 @@ use ink_prelude::{
     vec::Vec,
 };
 
+type AccountId = <ink_env::DefaultEnvironment as Environment>::AccountId;
+type Balance = <ink_env::DefaultEnvironment as Environment>::Balance;
+
+
 /// This is an example of how ink! contract should
 /// call substrate runtime `RandomnessCollectiveFlip::random_seed`.
 
@@ -36,6 +40,9 @@ pub trait FetchRandom {
 
     #[ink(extension = 1002, returns_result = false)]
     fn create_claim(claim: Vec<u8>);
+
+    #[ink(extension = 1003, returns_result = false)]
+    fn transfer_claim(to: AccountId, amount: Balance, claim: Vec<u8>);
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, scale::Encode, scale::Decode)]
@@ -74,7 +81,7 @@ impl Environment for CustomEnvironment {
 #[ink::contract(env = crate::CustomEnvironment)]
 mod rand_extension {
     use super::RandomReadErr;
-    use crate::vec;
+    use crate::{vec, Vec};
 
     /// Defines the storage of your contract.
     /// Here we store the random seed fetched from the chain
@@ -126,11 +133,21 @@ mod rand_extension {
         #[ink(message)]
         pub fn create_claim(&mut self) -> Result<(), RandomReadErr> {
             // let caller = self.env().caller();
-            let claim = vec![1, 3, 5];
+            let claim = vec![1, 0, 3, 5];
             self.env().extension().create_claim(claim)?;
 
             Ok(())
         }
+
+        #[ink(message)]
+        pub fn transfer_claim(&mut self, to: AccountId, amount: Balance) -> Result<(), RandomReadErr> {
+            // let caller = self.env().caller();
+            let claim = vec![1, 0, 3, 5];
+            self.env().extension().transfer_claim(to, amount, claim)?;
+
+            Ok(())
+        }
+
     }
 
     /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`

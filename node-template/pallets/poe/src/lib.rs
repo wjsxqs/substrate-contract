@@ -105,11 +105,39 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Module<T> {
-		pub fn do_create_claim(claim: Vec<u8>) -> Result<(), DispatchError> {
-			ensure!(claim.len() <= MAX_CLAIM_SIZE, Error::<T>::ClaimTooLong);
+		pub fn do_create_claim(who: T::AccountId, claim: Vec<u8>) -> Result<(), DispatchError> {
 
 			debug::info!("run do_create_claim");
+			debug::info!("who: {:?}", who);
 			debug::info!("claim: {:?}", claim);
+
+			ensure!(claim.len() <= MAX_CLAIM_SIZE, Error::<T>::ClaimTooLong);
+			ensure!(!Proofs::<T>::contains_key(&claim), Error::<T>::ProofAlreadyExist);
+
+			Proofs::<T>::insert(&claim, (who.clone(), frame_system::Module::<T>::block_number()));
+
+			Self::deposit_event(Event::ClaimCreated(who, claim));
+
+			Ok(())
+		}
+
+		pub fn do_transfer_claim(from: T::AccountId, to: T::AccountId, claim: Vec<u8>) -> Result<(), DispatchError> {
+			debug::info!("run do_transfer_claim");
+			debug::info!("from: {:?}", from);
+			debug::info!("to: {:?}", to);
+			debug::info!("claim: {:?}", claim);
+
+			ensure!(Proofs::<T>::contains_key(&claim), Error::<T>::ClaimNotExist);
+
+			let (owner, block_number) = Proofs::<T>::get(&claim);
+
+			ensure!(owner == from, Error::<T>::NotClaimOwner);
+
+			Proofs::<T>::remove(&claim);
+
+			Proofs::<T>::insert(&claim, (to.clone(), block_number));
+
+			Self::deposit_event(Event::ClaimTransfered(from, to, claim));
 
 			Ok(())
 		}
