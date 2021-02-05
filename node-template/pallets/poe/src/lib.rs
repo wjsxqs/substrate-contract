@@ -1,5 +1,15 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use sp_std::{fmt::Debug, prelude::*};
+use sp_runtime::{
+	RuntimeDebug,
+};
+use frame_support::{
+	ensure,
+	dispatch::DispatchError,
+};
+use frame_support::debug;
+
 pub use pallet::*;
 
 #[cfg(test)]
@@ -10,9 +20,9 @@ mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::{dispatch::{DispatchResultWithPostInfo, DispatchError}, pallet_prelude::*};
+	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
-	use sp_std::prelude::*;
+	use super::*;
 
 	pub const MAX_CLAIM_SIZE: usize = 1024;
 
@@ -56,13 +66,15 @@ pub mod pallet {
 		pub fn create_claim(origin: OriginFor<T>, claim: Vec<u8>) -> DispatchResultWithPostInfo {
 			let sender = ensure_signed(origin)?;
 
-			ensure!(claim.len() <= MAX_CLAIM_SIZE, Error::<T>::ClaimTooLong);
+			// ensure!(claim.len() <= MAX_CLAIM_SIZE, Error::<T>::ClaimTooLong);
+			//
+			// ensure!(!Proofs::<T>::contains_key(&claim), Error::<T>::ProofAlreadyExist);
+			//
+			// Proofs::<T>::insert(&claim, (sender.clone(), frame_system::Module::<T>::block_number()));
+			//
+			// Self::deposit_event(Event::ClaimCreated(sender, claim));
 
-			ensure!(!Proofs::<T>::contains_key(&claim), Error::<T>::ProofAlreadyExist);
-
-			Proofs::<T>::insert(&claim, (sender.clone(), frame_system::Module::<T>::block_number()));
-
-			Self::deposit_event(Event::ClaimCreated(sender, claim));
+			Self::do_create_claim(sender, claim)?;
 
 			Ok(().into())
 		}
@@ -103,44 +115,44 @@ pub mod pallet {
 			Ok(().into())
 		}
 	}
+}
 
-	impl<T: Config> Module<T> {
-		pub fn do_create_claim(who: T::AccountId, claim: Vec<u8>) -> Result<(), DispatchError> {
+impl<T: Config> Pallet<T> {
+	pub fn do_create_claim(who: T::AccountId, claim: Vec<u8>) -> Result<(), DispatchError> {
 
-			debug::info!("run do_create_claim");
-			debug::info!("who: {:?}", who);
-			debug::info!("claim: {:?}", claim);
+		debug::info!("run do_create_claim");
+		debug::info!("who: {:?}", who);
+		debug::info!("claim: {:?}", claim);
 
-			ensure!(claim.len() <= MAX_CLAIM_SIZE, Error::<T>::ClaimTooLong);
-			ensure!(!Proofs::<T>::contains_key(&claim), Error::<T>::ProofAlreadyExist);
+		ensure!(claim.len() <= MAX_CLAIM_SIZE, Error::<T>::ClaimTooLong);
+		ensure!(!Proofs::<T>::contains_key(&claim), Error::<T>::ProofAlreadyExist);
 
-			Proofs::<T>::insert(&claim, (who.clone(), frame_system::Module::<T>::block_number()));
+		Proofs::<T>::insert(&claim, (who.clone(), frame_system::Module::<T>::block_number()));
 
-			Self::deposit_event(Event::ClaimCreated(who, claim));
+		Self::deposit_event(Event::ClaimCreated(who, claim));
 
-			Ok(())
-		}
+		Ok(())
+	}
 
-		pub fn do_transfer_claim(from: T::AccountId, to: T::AccountId, claim: Vec<u8>) -> Result<(), DispatchError> {
-			debug::info!("run do_transfer_claim");
-			debug::info!("from: {:?}", from);
-			debug::info!("to: {:?}", to);
-			debug::info!("claim: {:?}", claim);
+	pub fn do_transfer_claim(from: T::AccountId, to: T::AccountId, claim: Vec<u8>) -> Result<(), DispatchError> {
+		debug::info!("run do_transfer_claim");
+		debug::info!("from: {:?}", from);
+		debug::info!("to: {:?}", to);
+		debug::info!("claim: {:?}", claim);
 
-			ensure!(Proofs::<T>::contains_key(&claim), Error::<T>::ClaimNotExist);
+		ensure!(Proofs::<T>::contains_key(&claim), Error::<T>::ClaimNotExist);
 
-			let (owner, block_number) = Proofs::<T>::get(&claim);
+		let (owner, block_number) = Proofs::<T>::get(&claim);
 
-			ensure!(owner == from, Error::<T>::NotClaimOwner);
+		ensure!(owner == from, Error::<T>::NotClaimOwner);
 
-			Proofs::<T>::remove(&claim);
+		Proofs::<T>::remove(&claim);
 
-			Proofs::<T>::insert(&claim, (to.clone(), block_number));
+		Proofs::<T>::insert(&claim, (to.clone(), block_number));
 
-			Self::deposit_event(Event::ClaimTransfered(from, to, claim));
+		Self::deposit_event(Event::ClaimTransfered(from, to, claim));
 
-			Ok(())
-		}
+		Ok(())
 	}
 }
 
